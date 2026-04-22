@@ -1,124 +1,100 @@
-# USAGE
-# python ball_tracking.py --video ball_tracking_example.mp4
-# python ball_tracking.py
-
-# import the necessary packages
-from collections import deque
-from imutils.video import VideoStream
 import numpy as np
-import argparse
-import cv2
-import imutils
-import time
 
-# construct the argument parse and parse the arguments
-ap = argparse.ArgumentParser()
-ap.add_argument("-v", "--video",
-	help="path to the (optional) video file")
-ap.add_argument("-b", "--buffer", type=int, default=64,
-	help="max buffer size")
-args = vars(ap.parse_args())
+LimiarBinarizacao = 125       #este valor eh empirico. Ajuste-o conforme sua necessidade 
+AreaContornoLimiteMin = 5000  #este valor eh empirico. Ajuste-o conforme sua necessidade 
 
-# define the lower and upper boundaries of the "green"
-# ball in the HSV color space, then initialize the
-# list of tracked points
-greenLower = (0, 0, 0)
-greenUpper = (10, 10, 10)
-pts = deque(maxlen=args["buffer"])
+#GPIOs utilizados:
 
-# if a video path was not supplied, grab the reference
-# to the webcam
-if not args.get("video", False):
-	vs = VideoStream(src=0).start()
 
-# otherwise, grab a reference to the video file
-else:
-	vs = cv2.VideoCapture(args["video"])
+#Funcao: trata imagem e retorna se o robo seguidor de linha deve ir para a esqueda ou direita
+#Parametros: frame capturado da webcam e primeiro frame capturado
+#Retorno: < 0: robo deve ir para a direita
+#         > 0: robo deve ir para a esquerda
+#         0:   nada deve ser feito
+def TrataImagem(img):
+    #obtencao das dimensoes da imagem
+    height = np.size(img,0)
+    width= np.size(img,1)
+    QtdeContornos = 0
+    DirecaoASerTomada = 0
 
-# allow the camera or video file to warm up
-time.sleep(2.0)
+    #tratamento da imagem
+    gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+    gray = cv2.GaussianBlur(gray, (21, 21), 0)
 
-# keep looping
+    FrameBinarizado = cv2.threshold(gray,LimiarBinarizacao,255,cv2.THRESH_BINARY)[1]
+    FrameBinarizado = cv2.dilate(FrameBinarizado,None,iterations=2)
+    FrameBinarizado = cv2.bitwise_not(FrameBinarizado)
+
+    #descomente as linhas abaixo se quiser ver o frame apos binarizacao, dilatacao e inversao de cores
+    #cv2.imshow('F.B.',FrameBinarizado)
+    #cv2.waitKey(10)
+
+    cnts, _ = cv2.findContours(FrameBinarizado.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    cv2.drawContours(img,cnts,-1,(255,0,255),3)
+    for c in cnts:
+        #se a area do contorno capturado for pequena, nada acontece
+        if cv2.contourArea(c) < AreaContornoLimiteMin:
+            continue
+
+        QtdeContornos = QtdeContornos + 1
+
+        #obtem coordenadas do contorno (na verdade, de um retangulo que consegue abrangir todo ocontorno) e
+        #realca o contorno com um retangulo.
+        (x, y, w, h) = cv2.boundingRect(c)   #x e y: coordenadas do vertice superior esquerdo
+                                             #w e h: respectivamente largura e altura do retangul       
+        cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 2)
+	
+        #determina o ponto central do contorno e desenha um circulo para indicar
+        CoordenadaXCentroContorno = int((x+x+w)/2)
+        CoordenadaYCentroContorno = int((y+y+h)/2)
+        PontoCentralContorno = (CoordenadaXCentroContorno,CoordenadaYCentroContorno)
+        cv2.circle(img, PontoCentralContorno, 1, (0, 0, 0), 5)
+
+        DirecaoASerTomada = CoordenadaXCentroContorno - (width/2)   #em relacao a linha central
+     
+    #output da imagem
+    #linha em azul: linha central / referencia
+    #linha em verde: linha que mostra distancia entre linha e a referencia
+    cv2.line(img,(int(width/2),0),(int(width/2),height),(255,0,0),2)
+    
+    if (QtdeContornos > 0):
+        cv2.line(img,PontoCentralContorno,(int(width/2),CoordenadaYCentroContorno),(0,255,0),1)
+    
+    cv2.imshow('Analise de rota',img)
+    cv2.waitKey(10)
+    return DirecaoASerTomada, QtdeContornos
+
+
+#Programa principal
+
+#Setup dos GPIOs:
+
+camera = cv2.VideoCapture(0)
+camera.set(3,320)
+camera.set(4,240)
+
+#faz algumas leituras de frames antes de consierar a analise
+#motivo: algumas camera podem demorar mais para se "acosumar a luminosidade" quando ligam, capturando frames consecutivos com muita variacao de luminosidade. Para nao levar este efeito ao processamento de imagem, capturas sucessivas sao feitas fora do processamento da imagem, dando tempo para a camera "se acostumar" a luminosidade do ambiente
+for i in range(0,20):
+    (grabbed, Frame) = camera.read()
+
 while True:
-	# grab the current frame
-	frame = vs.read()
-
-	# handle the frame from VideoCapture or VideoStream
-	frame = frame[1] if args.get("video", False) else frame
-
-	# if we are viewing a video and we did not grab a frame,
-	# then we have reached the end of the video
-	if frame is None:
-		break
-
-	# resize the frame, blur it, and convert it to the HSV
-	# color space
-	frame = imutils.resize(frame, width=600)
-	blurred = cv2.GaussianBlur(frame, (11, 11), 0)
-	hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
-
-	# construct a mask for the color "green", then perform
-	# a series of dilations and erosions to remove any small
-	# blobs left in the mask
-	mask = cv2.inRange(hsv, greenLower, greenUpper)
-	mask = cv2.erode(mask, None, iterations=2)
-	mask = cv2.dilate(mask, None, iterations=2)
-
-	# find contours in the mask and initialize the current
-	# (x, y) center of the ball
-	cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL,
-		cv2.CHAIN_APPROX_SIMPLE)
-	cnts = imutils.grab_contours(cnts)
-	center = None
-
-	# only proceed if at least one contour was found
-	if len(cnts) > 0:
-		# find the largest contour in the mask, then use
-		# it to compute the minimum enclosing circle and
-		# centroid
-		c = max(cnts, key=cv2.contourArea)
-		((x, y), radius) = cv2.minEnclosingCircle(c)
-		M = cv2.moments(c)
-		center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
-
-		# only proceed if the radius meets a minimum size
-		if radius > 10:
-			# draw the circle and centroid on the frame,
-			# then update the list of tracked points
-			cv2.circle(frame, (int(x), int(y)), int(radius),
-				(0, 255, 255), 2)
-			cv2.circle(frame, center, 5, (0, 0, 255), -1)
-
-	# update the points queue
-	pts.appendleft(center)
-
-	# loop over the set of tracked points
-	for i in range(1, len(pts)):
-		# if either of the tracked points are None, ignore
-		# them
-		if pts[i - 1] is None or pts[i] is None:
-			continue
-
-		# otherwise, compute the thickness of the line and
-		# draw the connecting lines
-		thickness = int(np.sqrt(args["buffer"] / float(i + 1)) * 2.5)
-		cv2.line(frame, pts[i - 1], pts[i], (0, 0, 255), thickness)
-
-	# show the frame to our screen
-	cv2.imshow("Frame", frame)
-	key = cv2.waitKey(1) & 0xFF
-
-	# if the 'q' key is pressed, stop the loop
-	if key == ord("q"):
-		break
-
-# if we are not using a video file, stop the camera video stream
-if not args.get("video", False):
-	vs.stop()
-
-# otherwise, release the camera
-else:
-	vs.release()
-
-# close all windows
-cv2.destroyAllWindows()
+    try:
+      (grabbed, Frame) = camera.read()
+    
+      if (grabbed):
+          Direcao,QtdeLinhas = TrataImagem(Frame)
+          if (QtdeLinhas == 0):
+             print("Nenhuma linha encontrada. O robo ira parar.")
+             continue
+        
+          if (Direcao > 0):
+              print("Distancia da linha de referencia: "+str(abs(Direcao))+" pixels a direita")
+          if (Direcao < 0):
+              print("Distancia da linha de referencia: "+str(abs(Direcao))+" pixels a esquerda")      
+          if (Direcao == 0):
+              print("Exatamente na linha de referencia!")
+    except (KeyboardInterrupt):
+        print("encerrado")
+        exit(1)   
