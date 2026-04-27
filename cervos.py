@@ -81,21 +81,26 @@ for i in range(0,20):
     (grabbed, Frame) = camera.read()
 
 while True:
-    try:
-      (grabbed, Frame) = camera.read()
+    ret, frame = camera.read()
+    if not ret: break
+
+    # 1. Converter BGR para HSV
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+
+    # 2. Definir o intervalo da cor vermelha em HSV
+    # Vermelho tem dois intervalos no HSV (0-10 e 170-180)
+    lower_red = np.array([45, 80, 40])
+    upper_red = np.array([75, 255, 255])
     
-      if (grabbed):
-          Direcao,QtdeLinhas = TrataImagem(Frame)
-          if (QtdeLinhas == 0):
-             print("Nenhuma linha encontrada. O robo ira parar.")
-             continue
+    if (grabbed):
+        Direcao,QtdeLinhas = TrataImagem(Frame)
+        if (QtdeLinhas == 0):
+           print("Nenhuma linha encontrada. O robo ira parar.")
+           continue
         
-          if (Direcao > 0):
-              print("Distancia da linha de referencia: "+str(abs(Direcao))+" pixels a direita")
-          if (Direcao < 0):
-              print("Distancia da linha de referencia: "+str(abs(Direcao))+" pixels a esquerda")      
-          if (Direcao == 0):
-              print("Exatamente na linha de referencia!")
-    except (KeyboardInterrupt):
-        print("encerrado")
-        exit(1)   
+        if (Direcao > 0):
+            print("Distancia da linha de referencia: "+str(abs(Direcao))+" pixels a direita")
+        if (Direcao < 0):
+            print("Distancia da linha de referencia: "+str(abs(Direcao))+" pixels a esquerda")      
+        if (Direcao == 0):
+            print("Exatamente na linha de referencia!")
