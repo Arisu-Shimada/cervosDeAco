@@ -1,3 +1,4 @@
+import cv2
 import numpy as np
 
 LimiarBinarizacao = 125       #este valor eh empirico. Ajuste-o conforme sua necessidade 
