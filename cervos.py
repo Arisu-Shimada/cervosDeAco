@@ -28,8 +28,8 @@ def TrataImagem(img):
     FrameBinarizado = cv2.bitwise_not(FrameBinarizado)
 
     #descomente as linhas abaixo se quiser ver o frame apos binarizacao, dilatacao e inversao de cores
-    #cv2.imshow('F.B.',FrameBinarizado)
-    #cv2.waitKey(10)
+    cv2.imshow('F.B.',FrameBinarizado)
+    cv2.waitKey(10)
 
     cnts, _ = cv2.findContours(FrameBinarizado.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     cv2.drawContours(img,cnts,-1,(255,0,255),3)
@@ -81,17 +81,6 @@ for i in range(0,20):
     (grabbed, Frame) = camera.read()
 
 while True:
-    ret, frame = camera.read()
-    if not ret: break
-
-    # 1. Converter BGR para HSV
-    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-
-    # 2. Definir o intervalo da cor vermelha em HSV
-    # Vermelho tem dois intervalos no HSV (0-10 e 170-180)
-    lower_red = np.array([45, 80, 40])
-    upper_red = np.array([75, 255, 255])
-    
     if (grabbed):
         Direcao,QtdeLinhas = TrataImagem(Frame)
         if (QtdeLinhas == 0):
