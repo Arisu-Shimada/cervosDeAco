@@ -13,6 +13,11 @@ AreaContornoLimiteMin = 5000  #este valor eh empirico. Ajuste-o conforme sua nec
 #         > 0: robo deve ir para a esquerda
 #         0:   nada deve ser feito
 def TrataImagem(img):
+    y_inicial, y_final = 100, 300
+    x_inicial, x_final = 80, 200
+
+    # 3. Recortar a imagem
+    img = img[y_inicial:y_final, x_inicial:x_final]
     #obtencao das dimensoes da imagem
     height = np.size(img,0)
     width= np.size(img,1)
@@ -81,15 +86,21 @@ for i in range(0,20):
     (grabbed, Frame) = camera.read()
 
 while True:
-    if (grabbed):
-        Direcao,QtdeLinhas = TrataImagem(Frame)
-        if (QtdeLinhas == 0):
-           print("Nenhuma linha encontrada. O robo ira parar.")
-           continue
+    try:
+      (grabbed, Frame) = camera.read()
+    
+      if (grabbed):
+          Direcao,QtdeLinhas = TrataImagem(Frame)
+          if (QtdeLinhas == 0):
+             print("Nenhuma linha encontrada. O robo ira parar.")
+             continue
         
-        if (Direcao > 0):
-            print("Distancia da linha de referencia: "+str(abs(Direcao))+" pixels a direita")
-        if (Direcao < 0):
-            print("Distancia da linha de referencia: "+str(abs(Direcao))+" pixels a esquerda")      
-        if (Direcao == 0):
-            print("Exatamente na linha de referencia!")
+          if (Direcao > 0):
+              print("Distancia da linha de referencia: "+str(abs(Direcao))+" pixels a direita")
+          if (Direcao < 0):
+              print("Distancia da linha de referencia: "+str(abs(Direcao))+" pixels a esquerda")      
+          if (Direcao == 0):
+              print("Exatamente na linha de referencia!")
+    except (KeyboardInterrupt):
+        print("encerrado")
+        exit(1)   
