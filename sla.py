@@ -109,6 +109,11 @@ camera = cv2.VideoCapture(0)
 camera.set(3,320)
 camera.set(4,240)
 
+kp = 0
+ki = 0
+kd = 0
+DirecaoAnterior = 0
+
 while True:
     try:    
         for i in range(0, 20):
@@ -117,6 +122,9 @@ while True:
             (grabbed, Frame) = camera.read()
             if (grabbed):
                 Direcao, QtdeLinhas = TrataImagem(Frame[160:320, 0:240])
+                i = i + Direcao
+                d = Direcao - DirecaoAnterior
+                correcao = (kp * Direcao) + (ki * i) + (kd * d)
                 if (QtdeLinhas == 0):
                     print("Nenhuma linha encontrada. O robo ira parar.")
                     continue
@@ -125,7 +133,8 @@ while True:
                 if (Direcao < 90):
                     print("Distancia da linha de referencia: " + str(abs(Direcao)) + " pixels a esquerda")                
                 if (Direcao == 90):
-                    print("Exatamente na linha de referencia!")                                    
+                    print("Exatamente na linha de referencia!")    
+                DirecaoAnterior = Direcao                                
                 time.sleep(0.01)
     except (KeyboardInterrupt):
         print("programa encerrado")         
