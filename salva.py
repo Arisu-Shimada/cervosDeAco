@@ -1,43 +1,133 @@
 import cv2
 import numpy as np
 
-# Iniciar captura de vídeo
-cap = cv2.VideoCapture(2)
+LimiarBinarizacao = 55       #este valor eh empirico. Ajuste-o conforme sua necessidade 
+AreaContornoLimiteMin = 100000  #este valor eh empirico. Ajuste-o conforme sua necessidade
+global pd1
+global pd2
 
-while True:
-    ret, frame = cap.read()
-    if not ret: break
+#GPIOs utilizados:
 
-    # 1. Converter BGR para HSV
-    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
-    # 2. Definir o intervalo da cor vermelha em HSV
-    # Vermelho tem dois intervalos no HSV (0-10 e 170-180)
-    lower_red = np.array([45, 80, 40])
-    upper_red = np.array([75, 255, 255])
-    
-    # 3. Criar a máscara para detectar o vermelho
-    mask = cv2.inRange(hsv, lower_red, upper_red)
-    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    qtdContour = 0
-    for contour in contours:
-        area = cv2.contourArea(contour)
-        if area > 100:  # Ajuste o valor conforme necessário
-            frame = cv2.drawContours(frame, [contour], -1, (0, 255, 0), 2)
-            qtdContour = len(contours)
+#Funcao: trata imagem e retorna se o robo seguidor de linha deve ir para a esqueda ou direita
+#Parametros: frame capturado da webcam e primeiro frame capturado
+#Retorno: < 0: robo deve ir para a direita
+#         > 0: robo deve ir para a esquerda
+#         0:   nada deve ser feito
+def TrataImagem(img):
+    #obtencao das dimensoes da imagem
+    height = np.size(img,0)
+    width= np.size(img,1)
+    QtdeContornos = 0
+    DirecaoASerTomada = 0
 
-    # 4. Aplicar a máscara na imagem original
-    result = cv2.bitwise_and(frame, frame, mask=mask)
+    def verde (img):
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        lower_green = np.array([40, 100, 100])
+        upper_green = np.array([80, 255, 255])
+        mask = cv2.inRange(hsv, lower_green, upper_green)
+        contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        for contour in contours:
+            area = cv2.contourArea(contour)
+            if area > 500:
+                x, y, w, h = cv2.boundingRect(contour)
+                cv2.rectangle(img, (x, y), (x + w, y + h), (255, 0, 0), 2)
+                if (x > width//2):
+                    print("Obstaculo a direita detectado!")
+                    return 0
+                if (x < width//2):
+                    print("Obstaculo a esquerda detectado!")
+                    return 1
+    #tratamento da imagem
+    gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+    gray = cv2.GaussianBlur(gray, (21, 21), 0)
 
-    # Mostrar resultados
-    cv2.imshow('Original', frame)
-    cv2.imshow('Mascara', mask)
-    cv2.imshow('Resultado', result)
-    print("qtd contornos: ", qtdContour)
+    FrameBinarizado = cv2.threshold(gray,LimiarBinarizacao,255,cv2.THRESH_BINARY)[1]
+    FrameBinarizado = cv2.dilate(FrameBinarizado,None,iterations=2)
+    FrameBinarizado = cv2.bitwise_not(FrameBinarizado)
 
-    # Sair com a tecla 'q'
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
+    #descomente as linhas abaixo se quiser ver o frame apos binarizacao, dilatacao e inversao de cores
+    cv2.imshow('F.B.',FrameBinarizado)
 
-cap.release()
-cv2.destroyAllWindows()
+    cnts, _ = cv2.findContours(FrameBinarizado.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    cv2.drawContours(img,cnts,-1,(255,0,255),3)
+    for c in cnts:
+
+        # Ignorar contornos muito pequenos
+        if cv2.contourArea(c) < 100: continue
+
+        # 3. Obter o retângulo mínimo rotacionado (centro, tamanho, angulo)
+        rect = cv2.minAreaRect(c)
+        box = cv2.boxPoints(rect) # Obtém os 4 vértices
+        box = np.intc(box) # Converte para inteiros
+
+        # 4. Desenhar o retângulo (opcional)
+        cv2.drawContours(img, [box], 0, (0, 255, 0), 2)
+
+        # 5. Identificar os lados
+        # box contém os vértices ordenados
+        p1, p2, p3, p4 = box[0], box[1], box[2], box[3]
+
+        # Lados são p1-p2, p2-p3, p3-p4, p4-p1
+        def dist(pa, pb):
+            return np.linalg.norm(pa - pb)
+
+        lados = [
+            (p1, p2, (p1+p2)/2), # lado 1 e seu ponto médio
+            (p2, p3, (p2+p3)/2),
+            (p3, p4, (p3+p4)/2),
+            (p4, p1, (p4+p1)/2)
+        ]
+
+        # Ordenar lados pelo comprimento
+        lados.sort(key=lambda x: dist(x[0], x[1]))
+
+        # 6. Os dois menores lados (menores comprimentos)
+        menor_lado1 = lados[0][2] # Ponto médio 1
+        menor_lado2 = lados[1][2] # Ponto médio 2
+
+        # Desenhar os pontos centrais
+        cv2.circle(img, ((width//2), height), 5, (255, 0, 0), -1)
+        cv2.circle(img, tuple(menor_lado2.astype(int)), 5, (0, 0, 255), -1)
+
+        angulo = np.arctan2((width//2) + height , menor_lado2[1]) * 180 / np.pi
+        print(f"Ângulo de direção: {int(angulo)} graus") 
+
+        DirecaoASerTomada = int(angulo)+1
+
+        DirecaoASerTomada = 0
+
+        if (verde(img) == 0):
+            DirecaoASerTomada = 180
+        if (verde(img) == 1):
+            DirecaoASerTomada = 0
+
+    return DirecaoASerTomada, QtdeContornos
+
+
+#Programa principal
+
+#Setup dos GPIOs:
+img = cv2.imread('curva2.png')
+
+kp = 0
+ki = 0
+kd = 0
+i = 0
+DirecaoAnterior = 0
+Direcao, QtdeLinhas = TrataImagem(img)
+i = i + Direcao
+d = Direcao - DirecaoAnterior
+correcao = (kp * Direcao) + (ki * i) + (kd * d)
+if (QtdeLinhas == 0):
+    print("Nenhuma linha encontrada. O robo ira parar.")
+if (Direcao > 90):
+    print("Distancia da linha de referencia: " + str(abs(Direcao)) + " pixels a direita")                    
+if (Direcao < 90):
+    print("Distancia da linha de referencia: " + str(abs(Direcao)) + " pixels a esquerda")                
+if (Direcao == 90):
+    print("Exatamente na linha de referencia!")    
+DirecaoAnterior = Direcao         
+cv2.imshow('Analise de rota',img)
+cv2.waitKey(0)
+cv2.destroyAllWindows()                       

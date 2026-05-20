@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 # Load image and convert to grayscale
-image = cv2.imread('curva.png')
+image = cv2.imread('90grau.png')
 height = np.size(image, 0)
 width = np.size(image, 1)
 

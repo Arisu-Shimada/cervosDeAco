@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 # 1. Carregar imagem e pré-processar
-image = cv2.imread('curva.png')
+image = cv2.imread('curva2.png')
 gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 _, thresh = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY)
 thresh = cv2.dilate(thresh,None,iterations=2)
