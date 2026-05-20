@@ -90,7 +90,7 @@ def TrataImagem(img):
         cv2.circle(img, ((width//2), height), 5, (255, 0, 0), -1)
         cv2.circle(img, tuple(menor_lado2.astype(int)), 5, (0, 0, 255), -1)
 
-        angulo = np.arctan2((width//2) + height , menor_lado2[1]) * 180 / np.pi
+        angulo = np.arctan2(menor_lado2[1], (width//2) + height) * 180 / np.pi
         print(f"Ângulo de direção: {int(angulo)} graus") 
 
         DirecaoASerTomada = int(angulo)+1
@@ -108,7 +108,7 @@ def TrataImagem(img):
 #Programa principal
 
 #Setup dos GPIOs:
-img = cv2.imread('curva2.png')
+img = cv2.imread('curva.png')
 
 kp = 0
 ki = 0
