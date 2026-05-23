@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import time
 
 LimiarBinarizacao = 55       #este valor eh empirico. Ajuste-o conforme sua necessidade 
 AreaContornoLimiteMin = 100000  #este valor eh empirico. Ajuste-o conforme sua necessidade
@@ -48,6 +49,7 @@ def TrataImagem(img):
 
     #descomente as linhas abaixo se quiser ver o frame apos binarizacao, dilatacao e inversao de cores
     cv2.imshow('F.B.',FrameBinarizado)
+    cv2.waitKey(10)
 
     cnts, _ = cv2.findContours(FrameBinarizado.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     cv2.drawContours(img,cnts,-1,(255,0,255),3)
@@ -90,12 +92,17 @@ def TrataImagem(img):
         cv2.circle(img, ((width//2), height), 5, (255, 0, 0), -1)
         cv2.circle(img, tuple(menor_lado2.astype(int)), 5, (0, 0, 255), -1)
 
-        angulo = np.arctan2(menor_lado2[1], (width//2) + height) * 180 / np.pi
-        print(f"Ângulo de direção: {int(angulo)} graus") 
+        delta_x = menor_lado2[0] - (width//2)
+        delta_y = menor_lado2[1] - height
+
+        angulo = np.arctan2(delta_y, delta_x) * -180 / np.pi
+        print(f"Ângulo de direção: {int(angulo)+1} graus") 
 
         DirecaoASerTomada = int(angulo)+1
 
         DirecaoASerTomada = 0
+
+        QtdeContornos = QtdeContornos + 1
 
         if (verde(img) == 0):
             DirecaoASerTomada = 180
@@ -108,26 +115,42 @@ def TrataImagem(img):
 #Programa principal
 
 #Setup dos GPIOs:
-img = cv2.imread('curva.png')
+camera = cv2.VideoCapture(1)
+camera.set(3,320)
+camera.set(4,240)
 
 kp = 0
 ki = 0
 kd = 0
 i = 0
 DirecaoAnterior = 0
-Direcao, QtdeLinhas = TrataImagem(img)
-i = i + Direcao
-d = Direcao - DirecaoAnterior
-correcao = (kp * Direcao) + (ki * i) + (kd * d)
-if (QtdeLinhas == 0):
-    print("Nenhuma linha encontrada. O robo ira parar.")
-if (Direcao > 90):
-    print("Distancia da linha de referencia: " + str(abs(Direcao)) + " pixels a direita")                    
-if (Direcao < 90):
-    print("Distancia da linha de referencia: " + str(abs(Direcao)) + " pixels a esquerda")                
-if (Direcao == 90):
-    print("Exatamente na linha de referencia!")    
-DirecaoAnterior = Direcao         
-cv2.imshow('Analise de rota',img)
-cv2.waitKey(0)
-cv2.destroyAllWindows()                       
+
+while True:
+    try:    
+        for i in range(0, 20):
+            (grabbed, Frame) = camera.read()
+        while True:
+            (grabbed, Frame) = camera.read()
+            if (grabbed):
+                Direcao, QtdeLinhas = TrataImagem(Frame[160:320, 0:240])
+                i = i + Direcao
+                d = Direcao - DirecaoAnterior
+                correcao = (kp * Direcao) + (ki * i) + (kd * d)
+                if (QtdeLinhas == 0):
+                    print("Nenhuma linha encontrada. O robo ira parar.")
+                if (Direcao > 90):
+                    print("Distancia da linha de referencia: " + str(abs(Direcao)) + " pixels a direita")                    
+                if (Direcao < 90):
+                    print("Distancia da linha de referencia: " + str(abs(Direcao)) + " pixels a esquerda")                
+                if (Direcao == 90):
+                    print("Exatamente na linha de referencia!")    
+                DirecaoAnterior = Direcao         
+                cv2.imshow('Analise de rota',Frame)
+                cv2.waitKey(10)
+            time.sleep(0.01)
+    except (KeyboardInterrupt):
+        print("programa encerrado")  
+        cv2.release(camera)       
+        cv2.destroyAllWindows()
+        exit(1)  
+    time.sleep(0.01)                       
