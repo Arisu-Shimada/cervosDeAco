@@ -1,0 +1,38 @@
+'''
+        #obtem coordenadas do contorno (na verdade, de um retangulo que consegue abrangir todo ocontorno) e
+        #realca o contorno com um retangulo.
+        (x, y, w, h) = cv2.boundingRect(c)   #x e y: coordenadas do vertice superior esquerdo
+                                             #w e h: respectivamente largura e altura do retangul       
+        cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 2)
+	
+        #determina o ponto central do contorno e desenha um circulo para indicar
+        CoordenadaXCentroContorno = int((x+x+w)/2)
+        CoordenadaYCentroContorno = int((y+y+h)/2)
+        PontoCentralContorno = (CoordenadaXCentroContorno,CoordenadaYCentroContorno)
+        cv2.circle(img, PontoCentralContorno, 1, (0, 0, 0), 5)
+
+        DirecaoASerTomada = CoordenadaXCentroContorno - (width/2)   #em relacao a linha central
+'''
+
+'''
+# Source - https://stackoverflow.com/a/35836029
+# Posted by KenArrari
+# Retrieved 2026-05-25, License - CC BY-SA 3.0
+
+import subprocess
+
+cmd = "readlink -f /dev/CAMC"
+process = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE)
+
+# output of form /dev/videoX
+out = process.communicate()[0]
+
+# parse for ints
+nums = [int(x) for x in out if x.isdigit()]
+
+cap = cv2.VideoCapture(nums[0])
+'''
+'''
+[160:320, 0:240]
+'''
+"v4l2:///dev/videoCam"
