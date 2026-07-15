@@ -1,142 +1,195 @@
-from ev3dev2.motor import MoveTank, OUTPUT_A, OUTPUT_B
-from ev3dev2.sensor.lego import ColorSensor
-from ev3dev2.button import Button
-from ev3dev2 import list_devices
-from ev3dev2.sensor.lego import InfraredSensor
-#from ev3dev2.sensor import INPUT_1
-#from ev3dev2.sensor import INPUT_2
-from ev3dev.ev3 import *
-from time import sleep
+import wiringpi as pi
+from wiringpi import GPIO as io
+import time
+import testeOled as ini
+import testeMotor as mt
+import cv2
+import numpy as np
 
-# Define os motores
-tank_drive = MoveTank(OUTPUT_A, OUTPUT_B)
+#Setup dos GPIOs:
+pi.wiringPiSetup()
 
-# Define os sensores de cor
-sensor_esq = ColorSensor(INPUT_1)
-sensor_dir = ColorSensor(INPUT_2)
-sensor_dist = InfraredSensor(INPUT_3)
+#GPIOs Utilizados
+pi.pinMode(23, io.OUTPUT)
+pi.pinMode(24, io.OUTPUT)
+pi.pinMode(25, io.OUTPUT)
+pi.pinMode(26, io.OUTPUT)
+pi.pinMode(5, io.OUTPUT)
 
-sensor_esq.mode = 'COL-COLOR'
-sensor_dir.mode = 'COL-COLOR'
+LimiarBinarizacao = 55       #este valor eh empirico. Ajuste-o conforme sua necessidade 
+AreaContornoLimiteMin = 100000  #este valor eh empirico. Ajuste-o conforme sua necessidade
 
-veri = False
+global pd1
+global pd2
 
-# Define a velocidade do robô
-velocidade = 30  # Ajuste conforme necessário
+def TrataImagem(img):
+    if (img is None):
+        print("Erro ao capturar a imagem da câmera!")
+        return 0, 0
+    #obtencao das dimensoes da imagem
+    height = np.size(img,0)
+    width= np.size(img,1)
+    QtdeContornos = 0
+    DirecaoASerTomada = 0
 
-def doisPreto_esq():
-    tank_drive.on_for_rotations(50, -50, 0.1)
-    tank_drive.on_for_rotations(50, 50, 0.5)
-    while(not Button().enter):
-        print("dois preto em uma moto")
-        tank_drive.on(-50, 50)
-        # Lê os valores dos sensores
-        valor_esq = sensor_esq.value()
-        valor_dir = sensor_dir.value()
-        if(sensor_dir != 6):
-            tank_drive.on(velocidade, velocidade)
-            break
-        """if(sensor_esq == 3 or sensor_dir == 3):
-            tank_drive.on(velocidade, velocidade)
-            break"""
-def doisPreto_dir():
-    tank_drive.on_for_rotations(-50, 50, 0.1)
-    tank_drive.on_for_rotations(50, 50, 0.5)
-    while(not Button().enter):
-        print("dois preto em uma moto")
-        tank_drive.on(50, -50)
-        # Lê os valores dos sensores
-        valor_esq = sensor_esq.value()
-        valor_dir = sensor_dir.value()
-        if(sensor_esq != 6):
-            tank_drive.on(velocidade, velocidade)
-            break
-        """if(sensor_esq == 3 or sensor_dir == 3):
-            tank_drive.on(velocidade, velocidade)
-            break"""
+    def verde (img):
+        if (img is None):
+            print("Erro ao capturar a imagem da câmera!")
+            return 0, 0
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        lower_green = np.array([40, 100, 100])
+        upper_green = np.array([80, 255, 255])
+        mask = cv2.inRange(hsv, lower_green, upper_green)
+        contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        for contour in contours:
+            area = cv2.contourArea(contour)
+            if area > 500:
+                x, y, w, h = cv2.boundingRect(contour)
+                cv2.rectangle(img, (x, y), (x + w, y + h), (255, 0, 0), 2)
+                if (x > width//2):
+                    print("Obstaculo a direita detectado!")
+                    return 0
+                if (x < width//2):
+                    print("Obstaculo a esquerda detectado!")
+                    return 1
+            time.sleep(0.01)
+    #tratamento da imagem
+    gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+    gray = cv2.GaussianBlur(gray, (21, 21), 0)
 
-def seguir_linha():
-    """Funcao principal para seguir a linha."""
-    
-    while not Button().enter:
-        # Lê os valores dos sensores
-        valor_esq = sensor_esq.value()
-        valor_dir = sensor_dir.value()
-        valor_dist = sensor_dist.value()
+    FrameBinarizado = cv2.threshold(gray,LimiarBinarizacao,255,cv2.THRESH_BINARY)[1]
+    FrameBinarizado = cv2.dilate(FrameBinarizado,None,iterations=2)
+    FrameBinarizado = cv2.bitwise_not(FrameBinarizado)
 
-        print(sensor_dir.value())
-        print(sensor_esq.value())
+    cnts, _ = cv2.findContours(FrameBinarizado.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    cv2.drawContours(img,cnts,-1,(255,0,255),3)
+    for c in cnts:
 
-        if (valor_dist <= 5):
-            desviarBloco()
-        # Verifica a posição na linha
-        if (valor_esq != 1 and valor_esq != 3 and valor_dir != 1 and valor_dir != 3):
-            # Ambos sensores sobre branco (fora da linha), segue em frente
-            tank_drive.on(velocidade, velocidade)
-        elif (valor_esq == 1):
-            # Sensor esquerdo sobre a linha (preto), curva para a esquerda
-            print("fora")
-            while(not Button().enter):
-                print("dentro")
-                tank_drive.on(-55, 55)
-                # Lê os valores dos sensores
-                valor_esq = sensor_esq.value()
-                valor_dir = sensor_dir.value()
-                
-                if(sensor_dir != 6 and sensor_esq != 6):
-                    doisPreto_esq()
-                    break
-                if(valor_esq == 6):
-                    tank_drive.on(velocidade, velocidade)
-                    print("saiu")
-                    break
-                if(sensor_esq == 3 or sensor_dir == 3):
-                    break
-                print(valor_esq)
+        QtdeContornos = QtdeContornos + 1
+        peri = cv2.arcLength(c, True)
 
-        elif (valor_dir == 1):
-            print("Fora")
-            # Sensor direito sobre a linha (preto), curva para a direita
-            while(not Button().enter):
-                print("dentro")
-                tank_drive.on(55, -55)
-
-                # Lê os valores dos sensores
-                valor_esq = sensor_esq.value()
-                valor_dir = sensor_dir.value()
-                
-                if(sensor_dir == 1 and sensor_esq == 1):
-                    doisPreto_dir()
-                    break
-                if(valor_dir == 6):
-                    tank_drive.on(velocidade, velocidade)
-                    print("saiu")
-                    break
-                if(sensor_esq == 3 or sensor_dir == 3):
-                    break
-                print(valor_dir)
+        # Aproxima o contorno com 2% a 4% de precisão do perímetro
+        approx = cv2.approxPolyDP(c, 0.02 * peri, True)
         
-        #sleep(0.01)  # Pequeno delay para evitar travamentos e leitura rápida dos sensores
-    tank_drive.off()
-def desviarBloco():
-    tank_drive.on_for_rotations(-50, -50, 0.1)
-    tank_drive.on_for_rotations(-50, 50, 1.3)
-    tank_drive.on(70, 25)
-    while (not Button().enter):
-        if (veri == True):
-            break
-        if (sensor_esq == 1):
-            tank_drive.on_for_rotations(velocidade, velocidade, 0.5)
-            while (not Button().enter):
-                if (sensor_esq == 1):
+        if len(approx) >= 4: # Verifica se é uma forma geométrica
+            #print(f"Vértices encontrados: {len(approx)}")
+            #print(approx) # Coordenadas (x, y) dos vértices
+
+            # Desenhar os vértices na imagem
+            cv2.drawContours(img, [approx], -1, (0, 0, 255), 3)
+
+            pd1 = approx[0][0][0] + ((approx[len(approx)-1][0][0] - approx[0][0][0]) / 2)
+            pd2 = approx[len(approx)-1][0][1]
+
+            cv2.circle(img, (int(pd1), int(pd2)), 10, (255, 0, 0), -1) # Desenha um círculo azul no ponto de destino
+
+            cv2.circle(img, (width//2, height), 10, (0, 0, 255), -1) # Desenha um círculo azul no ponto do robo
+
+            angulo = np.arctan2(pd2 - height, pd1 - (width//2)) * -180 / np.pi
+            print(f"Ângulo de direção: {int(angulo)+1} graus") 
+    
+            DirecaoASerTomada = int(angulo)+1
+
+            if (verde(img) == 0):
+                DirecaoASerTomada = 180
+            if (verde(img) == 1):
+                DirecaoASerTomada = 0
+            cv2.imshow("Frame", img)
+        time.sleep(0.01)
+    return DirecaoASerTomada, QtdeContornos
+
+#Programa principal
+
+camIndex = 11 #'v4l2:///dev/videoCam'
+
+camera = cv2.VideoCapture(camIndex, cv2.CAP_V4L2)
+camera.set(cv2.CAP_PROP_FRAME_WIDTH,320)
+camera.set(cv2.CAP_PROP_FRAME_HEIGHT,240)
+
+kp = 0
+ki = 0
+kd = 0
+DirecaoAnterior = 0
+botao = False
+
+while True:
+    pi.digitalWrite(5, io.HIGH)
+    ini.iniciarCod()
+    try:    
+        for i in range(0, 20):
+            (grabbed, Frame) = camera.read()
+            time.sleep(0.01)
+            if not grabbed:
+                print("Câmera desconectada! Tentando reconectar...")
+                camera.release()
+                time.sleep(2)  # Aguarda 2 segundos antes de tentar novamente
+                camera = cv2.VideoCapture(camIndex, cv2.CAP_V4L2)
+                camera.set(cv2.CAP_PROP_FRAME_WIDTH,320)
+                camera.set(cv2.CAP_PROP_FRAME_HEIGHT,240)
+                continue 
+        while True:
+            (grabbed, Frame) = camera.read()
+            # Se a câmera desconectar ou o frame falhar
+            if not grabbed:
+                print("Câmera desconectada! Tentando reconectar...")
+                camera.release()    
+                time.sleep(2)  # Aguarda 2 segundos antes de tentar novamente
+                camera = cv2.VideoCapture(camIndex, cv2.CAP_V4L2)
+                camera.set(cv2.CAP_PROP_FRAME_WIDTH,320)
+                camera.set(cv2.CAP_PROP_FRAME_HEIGHT,240)
+                continue            
+            if (grabbed):        
+                Direcao, QtdeLinhas = TrataImagem(Frame)
+                i = i + Direcao
+                d = Direcao - DirecaoAnterior
+                correcao = (kp * Direcao) + (ki * i) + (kd * d)
+                if(botao == True):
+                    pi.digitalWrite(5, io.LOW)
+                    mt.motor(0, 0)
                     break
-                tank_drive.on(-50, 50)
-            veri = True
-    veri = False
-
-
-
-# Programa Principal
-if __name__ == "__main__":
-    # Inicia o loop para seguir a linha
-    seguir_linha()
+                if (QtdeLinhas == 0 and botao == False):
+                    print("Nenhuma linha encontrada. O robo ira parar.")                    
+                    mt.motor(0, 0)
+                    continue
+                if (Direcao > 115 and botao == False):
+                    while(Direcao > 95):
+                        (grabbed, Frame) = camera.read()
+                        Direcao, QtdeLinhas = TrataImagem(Frame)
+                        print("Distancia da linha de referencia: " + str(abs(Direcao)) + " pixels a direita")
+                        mt.motor(1, -1)
+                        if(ini.lerBotao() == True):                    
+                            botao = True
+                            break
+                        time.sleep(0.1)
+                    time.sleep(0.5)
+                    mt.motor(1, 1)
+                if (Direcao < 70 and botao == False):
+                    while(Direcao < 85):
+                        (grabbed, Frame) = camera.read()
+                        Direcao, QtdeLinhas = TrataImagem(Frame)
+                        print("Distancia da linha de referencia: " + str(abs(Direcao)) + " pixels a esquerda")
+                        mt.motor(-1, 1)
+                        if(ini.lerBotao() == True):                    
+                            botao = True
+                            break
+                        time.sleep(0.1)
+                    time.sleep(0.5)
+                    mt.motor(1, 1)
+                if (Direcao < 95 and Direcao > 85 and botao == False):
+                    print("Exatamente na linha de referencia!")
+                    mt.motor(1, 1)
+                if(ini.lerBotao() == True):                    
+                    botao = True
+                    break
+                DirecaoAnterior = Direcao       
+            time.sleep(0.01)
+            botao = False
+    except (KeyboardInterrupt):
+        pi.digitalWrite(5, io.LOW)
+        print("programa encerrado") 
+        mt.motor(0, 0)
+        camera.release()
+        cv2.destroyAllWindows()
+        exit(1)
+    botao = False
+    time.sleep(0.01)
