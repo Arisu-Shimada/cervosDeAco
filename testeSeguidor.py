@@ -26,13 +26,16 @@ for cnt in contours:
     # peri: perímetro do contorno
     peri = cv2.arcLength(cnt, True)
     # Aproxima o contorno com 2% a 4% de precisão do perímetro
-    approx = cv2.approxPolyDP(cnt, 0.02 * peri, True)
+    approx = cv2.approxPolyDP(cnt, 0.01 * peri, True)
     if len(approx) >= 4: # Verifica se é uma forma geométrica
         print(f"Vértices encontrados: {len(approx)}")
         print(approx) # Coordenadas (x, y) dos vértices
         
         # Desenhar os vértices na imagem
         cv2.drawContours(image, [approx], -1, (0, 255, 0), 3)
+
+        for i in range(len(approx)):
+            cv2.line(image, tuple(approx[i][0]), tuple(approx[((i+1) * -1) % len(approx)][0]) , (0, 0, 255), 2)
 
         pd1 = approx[0][0][0] + ((approx[len(approx)-1][0][0] - approx[0][0][0]) / 2)
         pd2 = approx[len(approx)-1][0][1]

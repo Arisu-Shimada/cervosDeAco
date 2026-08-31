@@ -124,7 +124,7 @@ while True:
                 Direcao, QtdeLinhas = TrataImagem(Frame[160:320, 0:240])
                 i = i + Direcao
                 d = Direcao - DirecaoAnterior
-                correcao = (kp * Direcao) + (ki * i) + (kd * d)
+                correcao = (kp * Direcao) + (ki * i) + (kd * d) 
                 if (QtdeLinhas == 0):
                     print("Nenhuma linha encontrada. O robo ira parar.")
                     continue
