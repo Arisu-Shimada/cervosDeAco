@@ -76,7 +76,7 @@ def TrataImagem(img):
 
 #Setup dos GPIOs:
 
-camera = cv2.VideoCapture(0)
+camera = cv2.VideoCapture(1)
 camera.set(3,320)
 camera.set(4,240)
 
