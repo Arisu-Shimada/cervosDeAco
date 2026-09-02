@@ -41,7 +41,7 @@ def doisPreto_esq():
         # Le os valores dos sensores
         valor_esq = sensor_esq.value()
         valor_dir = sensor_dir.value()
-        if(sensor_dir != 6):
+        if(valor_dir != 6):
             tank_drive.on(velocidade, velocidade)
             break
         if time.time() > tempo_fim:
@@ -50,14 +50,14 @@ def doisPreto_esq():
                 # Le os valores dos sensores
                 valor_esq = sensor_esq.value()
                 valor_dir = sensor_dir.value()
-                if(sensor_dir != 6):
+                if(valor_dir != 6):
                     tank_drive.on(velocidade, velocidade)
                     break
-                if(sensor_esq == 3 or sensor_dir == 3):
+                if(valor_esq == 3 or valor_dir == 3):
                     break
                 time.sleep(0.01)  # Pequeno delay para evitar leitura rápida dos sensores
             break
-        if(sensor_esq == 3 or sensor_dir == 3):
+        if(valor_esq == 3 or valor_dir == 3):
             break
         time.sleep(0.01)  # Pequeno delay para evitar leitura rápida dos sensores
     tank_drive.on_for_rotations(50, -50, 0.1)
@@ -72,7 +72,7 @@ def doisPreto_dir():
         # Le os valores dos sensores
         valor_esq = sensor_esq.value()
         valor_dir = sensor_dir.value()
-        if(sensor_esq != 6):
+        if(valor_esq != 6):
             tank_drive.on(velocidade, velocidade)
             break
         if time.time() > tempo_fim:
@@ -81,14 +81,14 @@ def doisPreto_dir():
                 # Le os valores dos sensores
                 valor_esq = sensor_esq.value()
                 valor_dir = sensor_dir.value()
-                if(sensor_dir != 6):
+                if(valor_dir != 6):
                     tank_drive.on(velocidade, velocidade)
                     break
-                if(sensor_esq == 3 or sensor_dir == 3):
+                if(valor_esq == 3 or valor_dir == 3):
                     break
                 time.sleep(0.01)  # Pequeno delay para evitar leitura rápida dos sensores
             break
-        if(sensor_esq == 3 or sensor_dir == 3):
+        if(valor_esq == 3 or valor_dir == 3):
             break
         time.sleep(0.01)  # Pequeno delay para evitar leitura rápida dos sensores
     tank_drive.on_for_rotations(-50, 50, 0.1)
@@ -114,21 +114,21 @@ def seguir_linha():
         elif (valor_esq != 6 and valor_dir != 3):
             
             while(not Button().enter):
-                if (valor_esq != 1 and valor_esq != 3):
-                    break
-                tank_drive.on(-100, 100)
                 # Le os valores dos sensores
                 valor_esq = sensor_esq.value()
                 valor_dir = sensor_dir.value()
+                if (valor_esq != 1 and valor_esq != 3):
+                    break
+                tank_drive.on(-100, 100)
                 
-                if(sensor_dir != 6 and sensor_esq != 6):
+                if(valor_dir != 6 and valor_esq != 6):
                     doisPreto_esq()
                     break
                 if(valor_esq == 6):
                     tank_drive.on(velocidade, velocidade)
                     print("saiu")
                     break
-                if(sensor_esq == 3 or sensor_dir == 3):
+                if(valor_esq == 3 or valor_dir == 3):
                     verde()
                     break
                 print(valor_esq)
@@ -145,14 +145,14 @@ def seguir_linha():
                 valor_esq = sensor_esq.value()
                 valor_dir = sensor_dir.value()
                 
-                if(sensor_dir == 1 and sensor_esq == 1):
+                if(valor_dir == 1 and valor_esq == 1):
                     doisPreto_dir()
                     break
                 if(valor_dir == 6):
                     tank_drive.on(velocidade, velocidade)
                     print("saiu")
                     break
-                if(sensor_esq == 3 or sensor_dir == 3):
+                if(valor_esq == 3 or valor_dir == 3):
                     verde()
                     break
                 print(valor_dir)
@@ -164,12 +164,18 @@ def desviarBloco():
     tank_drive.on_for_rotations(50, -50, 1)
     tank_drive.on(20, 59)
     while (not Button().enter):
+        # Le os valores dos sensores
+        valor_esq = sensor_esq.value()
+        valor_dir = sensor_dir.value()
         if (veri == True):
             break
-        if (sensor_dir == 1):
+        if (valor_dir == 1):
             tank_drive.on_for_rotations(velocidade, velocidade, 0.5)
             while (not Button().enter):
-                if (sensor_dir == 1):
+                # Le os valores dos sensores
+                valor_esq = sensor_esq.value()
+                valor_dir = sensor_dir.value()
+                if (valor_dir == 1):
                     break
                 tank_drive.on(50, -50)
                 time.sleep(0.01)  # Pequeno delay para evitar leitura rápida dos sensores
@@ -186,22 +192,22 @@ def verde():
     valor_esq = sensor_esq.value()
     valor_dir = sensor_dir.value()
     valor_dist = sensor_dist.value()
-    if (sensor_esq == 3 and sensor_dir == 3):
+    if (valor_esq == 3 and valor_dir == 3):
         leds.set_color("LEFT", "RED")
         leds.set_color("RIGHT", "RED")
         tank_drive.on_for_rotations(-50, 50, 0.9)
-        while(sensor_esq != 1):
+        while(valor_esq != 1):
             # Le os valores dos sensores
             valor_esq = sensor_esq.value()
             valor_dir = sensor_dir.value()
             valor_dist = sensor_dist.value()
             tank_drive.on(-50, 50)
             time.sleep(0.01)
-    if (sensor_esq == 3 and sensor_dir != 3):
+    if (valor_esq == 3 and valor_dir != 3):
         leds.set_color("LEFT", "ORANGE")
         leds.set_color("RIGHT", "ORANGE")
         tank_drive.on_for_rotations(-50, 50, 0.5)
-        while(sensor_esq != 1):
+        while(valor_esq != 1):
             # Le os valores dos sensores
             valor_esq = sensor_esq.value()
             valor_dir = sensor_dir.value()
@@ -209,11 +215,11 @@ def verde():
             tank_drive.on(-50, 50)
             time.sleep(0.01)
         tank_drive.on_for_rotations(50, -50, 0.1)
-    if (sensor_esq != 3 and sensor_dir == 3):
+    if (valor_esq != 3 and valor_dir == 3):
         leds.set_color("LEFT", "GREEN")
         leds.set_color("RIGHT", "GREEN")
         tank_drive.on_for_rotations(50, -50, 0.5)
-        while(sensor_esq != 1):
+        while(valor_esq != 1):
             # Le os valores dos sensores
             valor_esq = sensor_esq.value()
             valor_dir = sensor_dir.value()
@@ -242,14 +248,14 @@ if __name__ == "__main__":
                 if (valor_esq != 1 and valor_esq != 3 and valor_dir != 1 and valor_dir != 3):
                     # Ambos sensores sobre branco (fora da linha), segue em frente
                     tank_drive.on(velocidade, velocidade)    
-                if (valor_esq != 6 and valor_esq != 0 or sensor_dir != 6 and valor_dir != 0):
-                    # Sensor esquerdo sobre a linha (preto), curva para a esquerda
-                    seguir_linha()
-                    if (sensor_dir == 3 or sensor_esq == 3):
+                if (valor_esq != 6 and valor_esq != 0 or valor_dir != 6 and valor_dir != 0):
+                    # Sensor esquerdo sobre a linha (preto), curva para a esquerda                    
+                    if (valor_dir == 3 or valor_esq == 3):
                         verde()
-                if (sensor_dist < 4):
+                    seguir_linha()
+                if (valor_dist < 4):
                     desviarBloco()
-                if (sensor_esq == 5 and sensor_dir == 5):
+                if (valor_esq == 5 and valor_dir == 5):
                     tank_drive.off()
                     break
                 time.sleep(0.01)  # Pequeno delay para evitar leitura rápida dos sensores

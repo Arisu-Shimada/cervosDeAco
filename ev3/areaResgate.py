@@ -30,3 +30,4 @@ sensor_dir.mode = 'COL-COLOR'
 velocidade = 30  # Ajuste conforme necessario
 
 def resgate():
+    pass
