@@ -8,6 +8,12 @@ from ev3dev2.sensor.lego import InfraredSensor
 from ev3dev.ev3 import *
 from ev3dev2.led import Leds
 from time import sleep, time
+import serial
+
+porta = '/dev/ttyUSB0'
+baud = 115200
+
+ser = serial.Serial(porta, baudrate=baud, timeout=1)
 
 # Define os motores
 tank_drive = MoveTank(OUTPUT_B, OUTPUT_C)
@@ -26,10 +32,11 @@ veri = False
 velocidade = 30  # Ajuste conforme necessario
 
 def doisPreto_esq():
+    tempo_inicio = time.time()
+    tempo_fim = tempo_inicio + 1
     tank_drive.on_for_rotations(50, -50, 0.1)
     tank_drive.on_for_rotations(50, 50, 0.5)
     while(not Button().enter):
-        print("dois preto em uma moto")
         tank_drive.on(-50, 50)
         # Le os valores dos sensores
         valor_esq = sensor_esq.value()
@@ -37,10 +44,26 @@ def doisPreto_esq():
         if(sensor_dir != 6):
             tank_drive.on(velocidade, velocidade)
             break
-        """if(sensor_esq == 3 or sensor_dir == 3):
-            tank_drive.on(velocidade, velocidade)
-            break"""
+        if time.time() > tempo_fim:
+            while(not Button().enter):
+                tank_drive.on(50, -50)
+                # Le os valores dos sensores
+                valor_esq = sensor_esq.value()
+                valor_dir = sensor_dir.value()
+                if(sensor_dir != 6):
+                    tank_drive.on(velocidade, velocidade)
+                    break
+                if(sensor_esq == 3 or sensor_dir == 3):
+                    break
+                time.sleep(0.01)  # Pequeno delay para evitar leitura rápida dos sensores
+            break
+        if(sensor_esq == 3 or sensor_dir == 3):
+            break
+        time.sleep(0.01)  # Pequeno delay para evitar leitura rápida dos sensores
+    tank_drive.on_for_rotations(50, -50, 0.1)
 def doisPreto_dir():
+    tempo_inicio = time.time()
+    tempo_fim = tempo_inicio + 1
     tank_drive.on_for_rotations(-50, 50, 0.1)
     tank_drive.on_for_rotations(50, 50, 0.5)
     while(not Button().enter):
@@ -52,9 +75,23 @@ def doisPreto_dir():
         if(sensor_esq != 6):
             tank_drive.on(velocidade, velocidade)
             break
-        """if(sensor_esq == 3 or sensor_dir == 3):
-            tank_drive.on(velocidade, velocidade)
-            break"""
+        if time.time() > tempo_fim:
+            while(not Button().enter):
+                tank_drive.on(-50, 50)
+                # Le os valores dos sensores
+                valor_esq = sensor_esq.value()
+                valor_dir = sensor_dir.value()
+                if(sensor_dir != 6):
+                    tank_drive.on(velocidade, velocidade)
+                    break
+                if(sensor_esq == 3 or sensor_dir == 3):
+                    break
+                time.sleep(0.01)  # Pequeno delay para evitar leitura rápida dos sensores
+            break
+        if(sensor_esq == 3 or sensor_dir == 3):
+            break
+        time.sleep(0.01)  # Pequeno delay para evitar leitura rápida dos sensores
+    tank_drive.on_for_rotations(-50, 50, 0.1)
 
 def seguir_linha():
     """Funcao principal para seguir a linha."""
@@ -74,12 +111,12 @@ def seguir_linha():
         if (valor_esq != 1 and valor_esq != 3 and valor_dir != 1 and valor_dir != 3):
             # Ambos sensores sobre branco (fora da linha), segue em frente
             tank_drive.on(velocidade, velocidade)
-        elif (valor_esq == 1):
-            # Sensor esquerdo sobre a linha (preto), curva para a esquerda
-            print("fora")
+        elif (valor_esq != 6 and valor_dir != 3):
+            
             while(not Button().enter):
-                print("dentro")
-                tank_drive.on(-55, 55)
+                if (valor_esq != 1 and valor_esq != 3):
+                    break
+                tank_drive.on(-100, 100)
                 # Le os valores dos sensores
                 valor_esq = sensor_esq.value()
                 valor_dir = sensor_dir.value()
@@ -92,10 +129,12 @@ def seguir_linha():
                     print("saiu")
                     break
                 if(sensor_esq == 3 or sensor_dir == 3):
+                    verde()
                     break
                 print(valor_esq)
+                time.sleep(0.01)  # Pequeno delay para evitar leitura rápida dos sensores
 
-        elif (valor_dir == 1):
+        elif (valor_dir != 6 and valor_esq != 3):
             print("Fora")
             # Sensor direito sobre a linha (preto), curva para a direita
             while(not Button().enter):
@@ -114,25 +153,28 @@ def seguir_linha():
                     print("saiu")
                     break
                 if(sensor_esq == 3 or sensor_dir == 3):
+                    verde()
                     break
                 print(valor_dir)
-        
-        #sleep(0.01)  # Pequeno delay para evitar travamentos e leitura rapida dos sensores
+                time.sleep(0.01)  # Pequeno delay para evitar leitura rápida dos sensores
+        time.sleep(0.01)  # Pequeno delay para evitar leitura rápida dos sensores
     tank_drive.off()
 def desviarBloco():
     tank_drive.on_for_rotations(-50, -50, 0.1)
-    tank_drive.on_for_rotations(-50, 50, 1.3)
-    tank_drive.on(70, 25)
+    tank_drive.on_for_rotations(50, -50, 1)
+    tank_drive.on(20, 59)
     while (not Button().enter):
         if (veri == True):
             break
-        if (sensor_esq == 1):
+        if (sensor_dir == 1):
             tank_drive.on_for_rotations(velocidade, velocidade, 0.5)
             while (not Button().enter):
-                if (sensor_esq == 1):
+                if (sensor_dir == 1):
                     break
-                tank_drive.on(-50, 50)
+                tank_drive.on(50, -50)
+                time.sleep(0.01)  # Pequeno delay para evitar leitura rápida dos sensores
             veri = True
+        time.sleep(0.01)  # Pequeno delay para evitar leitura rápida dos sensores
     veri = False
 def verde():
     leds = Leds()
@@ -210,6 +252,8 @@ if __name__ == "__main__":
                 if (sensor_esq == 5 and sensor_dir == 5):
                     tank_drive.off()
                     break
+                time.sleep(0.01)  # Pequeno delay para evitar leitura rápida dos sensores
+            time.sleep(0.01)  # Pequeno delay para evitar leitura rápida dos sensores
     except KeyboardInterrupt:
         tank_drive.off()
         print("Programa interrompido pelo usuario.")
